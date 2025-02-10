@@ -7,7 +7,7 @@ import shutil
 import string
 import sys
 from datetime import datetime
-import pyvips
+
 import os
 from spritemaker import createSpritesheet
 from PIL import Image
@@ -129,7 +129,29 @@ def makePyramid(filename, dest):
     try:
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         destpath = os.path.join(app.config['UPLOAD_FOLDER'], dest)
-        savedImg = pyvips.Image.new_from_file(filepath, access='sequential').tiffsave(destpath, tile=True, compression="lzw", tile_width=256, tile_height=256, pyramid=True, bigtiff=True)
+         # Loading the original image
+        original_img = pyvips.Image.new_from_file(filepath, access='sequential')
+        
+        # Extracting MPP values if available
+        mppx = original_img.get("openslide.mpp-x") if original_img.contains("openslide.mpp-x") else None
+        mppy = original_img.get("openslide.mpp-y") if original_img.contains("openslide.mpp-y") else None
+
+        # Saving the pyramid image
+        original_img.tiffsave(
+            destpath, 
+            tile=True, 
+            compression="lzw", 
+            tile_width=256, 
+            tile_height=256, 
+            pyramid=True, 
+            bigtiff=True
+        )
+
+        # Storing MPP in metadata if it was found
+        if mppx and mppy:
+            savedImg = pyvips.Image.new_from_file(destpath)
+            savedImg.set("openslide.mpp-x", mppx)
+            savedImg.set("openslide.mpp-y", mppy)
         while not os.path.exists(filepath):
             os.sync()
             sleep(750)
